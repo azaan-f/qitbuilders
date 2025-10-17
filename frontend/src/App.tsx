@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
-//Test comment by ali now
+//Test comment by ali now, test again
 function App() {
   const editorRef = useRef(null);
   const monacoInstanceRef = useRef(null);
