@@ -4,16 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "preview": "vite preview",
-    "test": "jest",
-    "lint:fix": "eslint .",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "prepare": "husky install"
-  },
+  "lint": "eslint .",
+  "lint:fix": "eslint . --fix",
+  "format": "prettier --write .",
+  "format:check": "prettier --check ."
+},
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
       "eslint --fix",
