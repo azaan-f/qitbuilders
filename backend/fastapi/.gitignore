@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual Environments
+venv/
+.env
+
+# OS Files
+.DS_Store
+
+# AWS Credentials
+.aws/
+
