@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
-//Test comment by ali now, test again
+
 function App() {
   const editorRef = useRef(null);
   const monacoInstanceRef = useRef(null);
@@ -25,8 +25,28 @@ function App() {
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
-      <div ref={editorRef} style={{ width: '100%', height: '100%' }} />
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        margin: 0,
+        padding: '40px',
+        backgroundColor: '#f3f4f6', // light gray background
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <div
+        ref={editorRef}
+        style={{
+          width: '80%',
+          height: '80%',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+        }}
+      />
     </div>
   );
 }
