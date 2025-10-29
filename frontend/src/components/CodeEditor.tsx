@@ -1,23 +1,37 @@
-import React from "react";
-import Editor from "@monaco-editor/react";
+import React, { useEffect, useRef } from 'react';
+import * as monaco from 'monaco-editor';
 
-const CodeEditor: React.FC = () => (
+const CodeEditor: React.FC = () => {
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const monacoInstanceRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+
+  useEffect(() => {
+    if (editorRef.current) {
+      monacoInstanceRef.current = monaco.editor.create(editorRef.current, {
+        value: '# QitBuilder\n# Write your Qiskit circuit code here\n',
+        language: 'python',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        fontSize: 14,
+        minimap: { enabled: false },
+      });
+    }
+
+    return () => {
+      monacoInstanceRef.current?.dispose();
+    };
+  }, []);
+
+  return (
     <div
-        className="border rounded-lg shadow-md bg-white w-full"
-        style={{ height: "600px" }}
-    >
-        <Editor
-        height="100%"
-        theme="vs-dark"
-        defaultLanguage="python"
-        defaultValue={`# QitBuilder\n# Write your Qiskit circuit code here\n`}
-        options={{
-            fontSize: 14,
-            minimap: { enabled: false },
-            automaticLayout: true,
-        }}
-        />
-    </div>
-);
+      ref={editorRef}
+      style={{
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#1e1e1e',
+      }}
+    />
+  );
+};
 
 export default CodeEditor;

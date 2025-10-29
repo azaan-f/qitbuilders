@@ -1,30 +1,7 @@
-import { useEffect, useRef } from 'react';
-import * as monaco from 'monaco-editor';
 import CircuitEditor from './components/CircuitEditor';
+import CodeEditor from './components/CodeEditor';
 
 function App() {
-  const editorRef = useRef(null);
-  const monacoInstanceRef = useRef(null);
-
-  useEffect(() => {
-    if (editorRef.current) {
-      monacoInstanceRef.current = monaco.editor.create(editorRef.current, {
-        value: '# Python here.\n',
-        language: 'python',
-        theme: 'vs-dark',
-        automaticLayout: true,
-        fontSize: 14,
-        minimap: { enabled: false },
-      });
-    }
-
-    return () => {
-      if (monacoInstanceRef.current) {
-        monacoInstanceRef.current.dispose();
-      }
-    };
-  }, []);
-
   return (
     <div
       style={{
@@ -52,17 +29,17 @@ function App() {
         <CircuitEditor />
       </div>
       <div
-        ref={editorRef}
         style={{
           flex: 1,
           height: '100%',
           borderLeft: '1px solid #d1d5db',
           boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)',
         }}
-      />
+      >
+        <CodeEditor />
+      </div>
     </div>
   );
-
 }
 
 export default App;
