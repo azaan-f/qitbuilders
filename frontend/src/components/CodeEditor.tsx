@@ -22,16 +22,24 @@ const CodeEditor: React.FC = () => {
     };
   }, []);
 
-  return (
+return (
+  <>
     <div
       ref={editorRef}
       style={{
         width: '100%',
-        height: '100%',
+        height: '95%',
         backgroundColor: '#1e1e1e',
+        borderRadius: '24px',
+        overflow: 'hidden',
       }}
     />
-  );
+    <div style={{ textAlign: 'center', marginTop: '10px' }}>
+      <button>Clear</button>
+    </div>
+  </>
+);
+
 };
 
 export default CodeEditor;
