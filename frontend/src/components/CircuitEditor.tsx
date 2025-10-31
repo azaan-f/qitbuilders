@@ -54,7 +54,6 @@ const CircuitEditor = () => {
       </ReactFlow>
     </div>
   );
-
 };
 
 export default CircuitEditor;
