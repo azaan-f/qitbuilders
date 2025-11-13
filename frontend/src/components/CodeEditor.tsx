@@ -4,7 +4,7 @@ import * as monaco from 'monaco-editor';
 const CodeEditor: React.FC = () => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const monacoInstanceRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-
+ 
   useEffect(() => {
     if (editorRef.current) {
       monacoInstanceRef.current = monaco.editor.create(editorRef.current, {
