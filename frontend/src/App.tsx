@@ -16,7 +16,7 @@ function App() {
       }}
     >
       <TopBar />
-      <div 
+      <div
         style={{
           display: 'flex',
           flex: 1,
