@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import CircuitEditor from './components/CircuitEditor';
 import CodeEditor from './components/CodeEditor';
 import TopBar from './components/TopBar';
 
 function App() {
+  const [gates, setGates] = useState([]);
+
   return (
     <div
       style={{
@@ -16,13 +19,7 @@ function App() {
       }}
     >
       <TopBar />
-      <div
-        style={{
-          display: 'flex',
-          flex: 1,
-          overflow: 'hidden',
-        }}
-      >
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <div
           style={{
             flex: 1,
@@ -31,13 +28,11 @@ function App() {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            fontSize: '1.25rem',
-            fontWeight: '500',
-            color: '#4b5563',
           }}
         >
-          <CircuitEditor />
+          <CircuitEditor setGates={setGates} />
         </div>
+
         <div
           style={{
             flex: 1,
@@ -45,12 +40,9 @@ function App() {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            fontSize: '1.25rem',
-            fontWeight: '500',
-            color: '#4b5563',
           }}
         >
-          <CodeEditor />
+          <CodeEditor gates={gates} />
         </div>
       </div>
     </div>
