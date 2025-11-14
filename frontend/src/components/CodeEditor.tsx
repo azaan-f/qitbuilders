@@ -59,4 +59,21 @@ const CodeEditor: React.FC<{ gates: any[] }> = ({ gates }) => {
   );
 };
 
+
+const testMode = false;
+
+if (testMode) {
+  const sample = [{ type: 'x', qubit: 0, time: 25 }];
+
+  let out = 'from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(2)\n';
+  for (const g of sample) out += `qc.x(${g.qubit})\n`;
+  out += "\nqc.draw('text')\n";
+
+  if (
+    out !==
+    "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(2)\nqc.x(0)\n\nqc.draw('text')\n"
+  )
+    throw new Error('Gate-to-code mirroring failed');
+}
+
 export default CodeEditor;
