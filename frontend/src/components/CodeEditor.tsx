@@ -65,7 +65,6 @@ const CodeEditor: React.FC<{ gates: Gate[] }> = ({ gates }) => {
   );
 };
 
-
 const testMode = false;
 
 if (testMode) {
