@@ -160,4 +160,35 @@ const CircuitEditor = () => {
   );
 };
 
+const testMode = false;
+
+if (testMode) {
+  const g = snapToGrid(37);
+  if (g !== 25 && g !== 50) throw new Error('snapToGrid failed');
+
+  const w = snapToWireCenter(112);
+  if (typeof w !== 'number') throw new Error('snapToWireCenter failed');
+
+  if (!Array.isArray(initialNodes) || initialNodes.length < 2) {
+    throw new Error('initialNodes missing');
+  }
+
+  const node = {
+    id: 'xgate',
+    type: 'gate',
+    width: 40,
+    position: { x: 113, y: 199 },
+  };
+
+  const width = node.width ?? 40;
+  const wireCenterX = snapToWireCenter(node.position.x);
+  const snapped = {
+    x: wireCenterX - width / 2,
+    y: snapToGrid(node.position.y),
+  };
+
+  if (typeof snapped.x !== 'number' || typeof snapped.y !== 'number') {
+    throw new Error('snapping failed');
+  }
+}
 export default CircuitEditor;
