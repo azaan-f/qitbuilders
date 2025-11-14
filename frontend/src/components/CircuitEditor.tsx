@@ -46,7 +46,6 @@ const QubitWire = ({ data }) => {
   );
 };
 
-
 const nodeTypes = { qubit: QubitWire };
 
 const QUBIT_WIRES = [
