@@ -16,7 +16,7 @@ import 'reactflow/dist/style.css';
 const GRID_SIZE = 25;
 const snapToGrid = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
 
-const QubitWire = ({ data }) => (
+const QubitWire = ({ data }: { data: { label: string } }) => (
   <div style={{ width: 1, pointerEvents: 'none' }}>
     <div
       style={{
@@ -110,7 +110,14 @@ const initialNodes: Node[] = [
 
 const initialEdges: Edge[] = [];
 
-const CircuitEditor = ({ setGates }) => {
+type Gate = {
+  id: string;
+  type: string;
+  qubit: number;
+  time: number;
+};
+
+const CircuitEditor = ({ setGates }: { setGates: (g: Gate[]) => void }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
@@ -120,7 +127,7 @@ const CircuitEditor = ({ setGates }) => {
   );
 
   const onNodeDragStop = useCallback(
-    (_event, node) => {
+    (_event: React.MouseEvent, node: Node) => {
       if (node.type === 'qubit') return;
 
       const width = node.width ?? 40;

@@ -1,7 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
 
-const CodeEditor: React.FC<{ gates: any[] }> = ({ gates }) => {
+type Gate = {
+  type: string;
+  qubit: number;
+  time?: number;
+};
+
+const CodeEditor: React.FC<{ gates: Gate[] }> = ({ gates }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 

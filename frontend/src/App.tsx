@@ -4,7 +4,14 @@ import CodeEditor from './components/CodeEditor';
 import TopBar from './components/TopBar';
 
 function App() {
-  const [gates, setGates] = useState([]);
+  type Gate = {
+    id: string;
+    type: string;
+    qubit: number;
+    time: number;
+  };
+
+  const [gates, setGates] = useState<Gate[]>([]);
 
   return (
     <div
