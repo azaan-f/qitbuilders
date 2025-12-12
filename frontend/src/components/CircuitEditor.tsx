@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { memo, useCallback, useEffect, useState } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -9,6 +9,7 @@ import ReactFlow, {
   Connection,
   Edge,
   Node,
+  NodeProps,
 } from 'reactflow';
 
 import 'reactflow/dist/style.css';
@@ -44,7 +45,64 @@ const QubitWire = ({ data }: { data: { label: string } }) => (
   </div>
 );
 
-const nodeTypes = { qubit: QubitWire };
+const GateNode = memo(({ id, data }: NodeProps) => {
+  const [hover, setHover] = useState(false);
+
+  return (
+    <div
+      style={{
+        width: 40,
+        height: 40,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: '2px solid black',
+        borderRadius: 6,
+        background: 'white',
+        fontWeight: 600,
+        cursor: 'grab',
+        userSelect: 'none',
+        boxSizing: 'border-box',
+        position: 'relative',
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      {data?.label ?? 'G'}
+
+      {hover && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            data?.onDelete?.(id);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: -8,
+            right: -8,
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            border: '1px solid rgba(0,0,0,0.3)',
+            background: 'white',
+            fontSize: 12,
+            lineHeight: '16px',
+            padding: 0,
+            cursor: 'pointer',
+          }}
+          aria-label="Delete gate"
+          title="Delete"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+});
+
+const nodeTypes = { qubit: QubitWire, gate: GateNode };
 
 const QUBIT_WIRES = [
   { id: 'q0', x: snapToGrid(100) },
@@ -91,20 +149,6 @@ const initialNodes: Node[] = [
     type: 'gate',
     position: { x: QUBIT_WIRES[0].x - 20, y: 200 },
     data: { label: 'X', gateType: 'x' },
-    style: {
-      width: 40,
-      height: 40,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      border: '2px solid black',
-      borderRadius: 6,
-      background: 'white',
-      fontWeight: 600,
-      cursor: 'grab',
-      userSelect: 'none',
-      boxSizing: 'border-box',
-    },
   },
 ];
 
@@ -125,6 +169,20 @@ const CircuitEditor = ({ setGates }: { setGates: (g: Gate[]) => void }) => {
     (params: Edge | Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
     [setEdges]
   );
+
+  const deleteGate = useCallback(
+    (id: string) => {
+      setNodes((nds) => nds.filter((n) => n.id !== id));
+      setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+    },
+    [setNodes, setEdges]
+  );
+
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((n) => (n.type === 'gate' ? { ...n, data: { ...n.data, onDelete: deleteGate } } : n))
+    );
+  }, [deleteGate, setNodes]);
 
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
@@ -217,4 +275,5 @@ if (testMode) {
     throw new Error('snapping failed');
   }
 }
+
 export default CircuitEditor;
