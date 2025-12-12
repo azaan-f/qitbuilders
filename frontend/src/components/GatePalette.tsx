@@ -1,7 +1,11 @@
 import React from 'react';
 
-export type PaletteItem =
-  | { kind: 'single'; gateType: string; label: string; params?: Record<string, unknown> }
+export type PaletteItem = {
+  kind: 'single';
+  gateType: string;
+  label: string;
+  params?: Record<string, unknown>;
+};
 
 const PALETTE: PaletteItem[] = [
   { kind: 'single', gateType: 'x', label: 'X' },
