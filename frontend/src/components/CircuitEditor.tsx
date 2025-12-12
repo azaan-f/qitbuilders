@@ -174,7 +174,6 @@ type Gate = {
   params?: GateParams;
 };
 
-
 function CircuitEditorInner({ setGates }: { setGates: (g: Gate[]) => void }) {
   const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
 
