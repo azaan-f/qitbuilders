@@ -1,7 +1,11 @@
 import React from 'react';
 
-export type PaletteItem =
-  | { kind: 'single'; gateType: string; label: string; params?: Record<string, unknown> }
+export type PaletteItem = {
+  kind: 'single';
+  gateType: string;
+  label: string;
+  params?: Record<string, unknown>;
+};
 
 const PALETTE: PaletteItem[] = [
   { kind: 'single', gateType: 'x', label: 'X' },
@@ -42,7 +46,7 @@ const GatePalette: React.FC = () => {
         height: '100%',
       }}
     >
-      <div style={{ fontWeight: 700, marginBottom: 10 }}>Palette</div>
+      <div style={{ fontWeight: 700, marginBottom: 10 }}>Available Gates</div>
       <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 10 }}>
         Drag a gate onto the canvas.
       </div>
