@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useState } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -10,12 +10,38 @@ import ReactFlow, {
   Edge,
   Node,
   NodeProps,
+  ReactFlowProvider,
+  useReactFlow,
 } from 'reactflow';
 
 import 'reactflow/dist/style.css';
 
+import GatePalette, { PaletteItem } from './GatePalette';
+
 const GRID_SIZE = 25;
 const snapToGrid = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
+
+const QUBIT_WIRES = [
+  { id: 'q0', x: snapToGrid(100) },
+  { id: 'q1', x: snapToGrid(250) },
+];
+
+const snapToWireCenter = (x: number) => {
+  const gridX = snapToGrid(x);
+
+  let bestX = QUBIT_WIRES[0].x;
+  let minDist = Math.abs(gridX - bestX);
+
+  for (const wire of QUBIT_WIRES) {
+    const dist = Math.abs(gridX - wire.x);
+    if (dist < minDist) {
+      bestX = wire.x;
+      minDist = dist;
+    }
+  }
+
+  return bestX;
+};
 
 const QubitWire = ({ data }: { data: { label: string } }) => (
   <div style={{ width: 1, pointerEvents: 'none' }}>
@@ -45,7 +71,22 @@ const QubitWire = ({ data }: { data: { label: string } }) => (
   </div>
 );
 
-const GateNode = memo(({ id, data }: NodeProps) => {
+type GateParams = Record<string, unknown>;
+
+type GateNodeData = {
+  label: string;
+  gateType: string;
+  params?: GateParams;
+  onDelete?: (id: string) => void;
+};
+
+type GateNode = Node<GateNodeData>;
+
+function isGateNode(n: Node): n is GateNode {
+  return n.type === 'gate' && typeof (n.data as GateNodeData | undefined)?.gateType === 'string';
+}
+
+const GateNodeComponent = memo(({ id, data }: NodeProps<GateNodeData>) => {
   const [hover, setHover] = useState(false);
 
   return (
@@ -102,29 +143,7 @@ const GateNode = memo(({ id, data }: NodeProps) => {
   );
 });
 
-const nodeTypes = { qubit: QubitWire, gate: GateNode };
-
-const QUBIT_WIRES = [
-  { id: 'q0', x: snapToGrid(100) },
-  { id: 'q1', x: snapToGrid(250) },
-];
-
-const snapToWireCenter = (x: number) => {
-  const gridX = snapToGrid(x);
-
-  let bestX = QUBIT_WIRES[0].x;
-  let minDist = Math.abs(gridX - bestX);
-
-  for (const wire of QUBIT_WIRES) {
-    const dist = Math.abs(gridX - wire.x);
-    if (dist < minDist) {
-      bestX = wire.x;
-      minDist = dist;
-    }
-  }
-
-  return bestX;
-};
+const nodeTypes = { qubit: QubitWire, gate: GateNodeComponent };
 
 const initialNodes: Node[] = [
   {
@@ -143,13 +162,6 @@ const initialNodes: Node[] = [
     selectable: false,
     draggable: false,
   },
-
-  {
-    id: 'xgate',
-    type: 'gate',
-    position: { x: QUBIT_WIRES[0].x - 20, y: 200 },
-    data: { label: 'X', gateType: 'x' },
-  },
 ];
 
 const initialEdges: Edge[] = [];
@@ -159,11 +171,17 @@ type Gate = {
   type: string;
   qubit: number;
   time: number;
+  params?: GateParams;
 };
 
-const CircuitEditor = ({ setGates }: { setGates: (g: Gate[]) => void }) => {
+
+function CircuitEditorInner({ setGates }: { setGates: (g: Gate[]) => void }) {
+  const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
+
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  const { screenToFlowPosition } = useReactFlow();
 
   const onConnect = useCallback(
     (params: Edge | Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
@@ -180,7 +198,11 @@ const CircuitEditor = ({ setGates }: { setGates: (g: Gate[]) => void }) => {
 
   useEffect(() => {
     setNodes((nds) =>
-      nds.map((n) => (n.type === 'gate' ? { ...n, data: { ...n.data, onDelete: deleteGate } } : n))
+      nds.map((n) => {
+        if (n.type !== 'gate') return n;
+        const d = n.data as GateNodeData;
+        return { ...n, data: { ...d, onDelete: deleteGate } };
+      })
     );
   }, [deleteGate, setNodes]);
 
@@ -201,9 +223,54 @@ const CircuitEditor = ({ setGates }: { setGates: (g: Gate[]) => void }) => {
     [setNodes]
   );
 
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const makeId = useCallback(() => `g-${Date.now()}-${Math.random().toString(16).slice(2)}`, []);
+
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+
+      const raw = e.dataTransfer.getData('application/qitbuilder-gate');
+      if (!raw) return;
+
+      let item: PaletteItem | null = null;
+      try {
+        item = JSON.parse(raw) as PaletteItem;
+      } catch {
+        return;
+      }
+      if (!item || item.kind !== 'single') return;
+
+      const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+
+      const y = snapToGrid(flowPos.y);
+      const wireCenterX = snapToWireCenter(flowPos.x);
+      const x = wireCenterX - 20;
+
+      const id = makeId();
+      const newNode: GateNode = {
+        id,
+        type: 'gate',
+        position: { x, y },
+        data: {
+          label: item.label,
+          gateType: item.gateType,
+          params: item.params,
+        },
+      };
+
+      setNodes((nds) => nds.concat(newNode));
+    },
+    [makeId, screenToFlowPosition, setNodes]
+  );
+
   useEffect(() => {
-    const gates = nodes
-      .filter((n) => n.data?.gateType)
+    const gates: Gate[] = nodes
+      .filter(isGateNode)
       .map((gateNode) => {
         const wireX = snapToWireCenter(gateNode.position.x);
         const qubit = QUBIT_WIRES.findIndex((w) => w.x === wireX);
@@ -214,6 +281,7 @@ const CircuitEditor = ({ setGates }: { setGates: (g: Gate[]) => void }) => {
           type: gateNode.data.gateType,
           qubit,
           time,
+          params: gateNode.data.params,
         };
       })
       .sort((a, b) => a.time - b.time);
@@ -222,58 +290,40 @@ const CircuitEditor = ({ setGates }: { setGates: (g: Gate[]) => void }) => {
   }, [nodes, setGates]);
 
   return (
-    <div style={{ width: '100%', height: '100%' }}>
-      <ReactFlow
-        nodeTypes={nodeTypes}
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeDragStop={onNodeDragStop}
-        onConnect={onConnect}
-        snapToGrid
-        snapGrid={[GRID_SIZE, GRID_SIZE]}
-        fitView
-        fitViewOptions={{ padding: 2 }}
-      >
-        <MiniMap />
-        <Controls />
-        <Background gap={GRID_SIZE} />
-      </ReactFlow>
+    <div style={{ width: '100%', height: '100%', display: 'flex' }}>
+      <GatePalette />
+
+      <div ref={reactFlowWrapper} style={{ flex: 1, height: '100%', minWidth: 0 }}>
+        <ReactFlow
+          nodeTypes={nodeTypes}
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeDragStop={onNodeDragStop}
+          onConnect={onConnect}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+          snapToGrid
+          snapGrid={[GRID_SIZE, GRID_SIZE]}
+          fitView
+          fitViewOptions={{ padding: 2 }}
+        >
+          <MiniMap />
+          <Controls />
+          <Background gap={GRID_SIZE} />
+        </ReactFlow>
+      </div>
     </div>
   );
-};
-
-const testMode = false;
-
-if (testMode) {
-  const g = snapToGrid(37);
-  if (g !== 25 && g !== 50) throw new Error('snapToGrid failed');
-
-  const w = snapToWireCenter(112);
-  if (typeof w !== 'number') throw new Error('snapToWireCenter failed');
-
-  if (!Array.isArray(initialNodes) || initialNodes.length < 2) {
-    throw new Error('initialNodes missing');
-  }
-
-  const node = {
-    id: 'xgate',
-    type: 'gate',
-    width: 40,
-    position: { x: 113, y: 199 },
-  };
-
-  const width = node.width ?? 40;
-  const wireCenterX = snapToWireCenter(node.position.x);
-  const snapped = {
-    x: wireCenterX - width / 2,
-    y: snapToGrid(node.position.y),
-  };
-
-  if (typeof snapped.x !== 'number' || typeof snapped.y !== 'number') {
-    throw new Error('snapping failed');
-  }
 }
+
+const CircuitEditor = ({ setGates }: { setGates: (g: Gate[]) => void }) => {
+  return (
+    <ReactFlowProvider>
+      <CircuitEditorInner setGates={setGates} />
+    </ReactFlowProvider>
+  );
+};
 
 export default CircuitEditor;
