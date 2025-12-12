@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -16,35 +16,33 @@ import 'reactflow/dist/style.css';
 const GRID_SIZE = 25;
 const snapToGrid = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
 
-const QubitWire = ({ data }) => {
-  return (
-    <div style={{ width: 1, pointerEvents: 'none' }}>
-      <div
-        style={{
-          fontSize: 18,
-          fontWeight: 600,
-          marginBottom: 6,
-          userSelect: 'none',
-          textAlign: 'center',
-          transform: 'translateX(-50%)',
-        }}
-      >
-        {data.label}
-      </div>
-
-      <div
-        style={{
-          position: 'absolute',
-          top: 30,
-          left: 0,
-          width: '2px',
-          height: '800px',
-          background: 'rgba(0,0,0,0.25)',
-        }}
-      />
+const QubitWire = ({ data }: { data: { label: string } }) => (
+  <div style={{ width: 1, pointerEvents: 'none' }}>
+    <div
+      style={{
+        fontSize: 18,
+        fontWeight: 600,
+        marginBottom: 6,
+        userSelect: 'none',
+        textAlign: 'center',
+        transform: 'translateX(-50%)',
+      }}
+    >
+      {data.label}
     </div>
-  );
-};
+
+    <div
+      style={{
+        position: 'absolute',
+        top: 30,
+        left: 0,
+        width: '2px',
+        height: '800px',
+        background: 'rgba(0,0,0,0.25)',
+      }}
+    />
+  </div>
+);
 
 const nodeTypes = { qubit: QubitWire };
 
@@ -56,18 +54,18 @@ const QUBIT_WIRES = [
 const snapToWireCenter = (x: number) => {
   const gridX = snapToGrid(x);
 
-  let best = QUBIT_WIRES[0].x;
-  let minDist = Math.abs(gridX - best);
+  let bestX = QUBIT_WIRES[0].x;
+  let minDist = Math.abs(gridX - bestX);
 
-  for (const q of QUBIT_WIRES) {
-    const dist = Math.abs(gridX - q.x);
+  for (const wire of QUBIT_WIRES) {
+    const dist = Math.abs(gridX - wire.x);
     if (dist < minDist) {
-      best = q.x;
+      bestX = wire.x;
       minDist = dist;
     }
   }
 
-  return best;
+  return bestX;
 };
 
 const initialNodes: Node[] = [
@@ -90,8 +88,9 @@ const initialNodes: Node[] = [
 
   {
     id: 'xgate',
+    type: 'gate',
     position: { x: QUBIT_WIRES[0].x - 20, y: 200 },
-    data: { label: 'X' },
+    data: { label: 'X', gateType: 'x' },
     style: {
       width: 40,
       height: 40,
@@ -111,7 +110,14 @@ const initialNodes: Node[] = [
 
 const initialEdges: Edge[] = [];
 
-const CircuitEditor = () => {
+type Gate = {
+  id: string;
+  type: string;
+  qubit: number;
+  time: number;
+};
+
+const CircuitEditor = ({ setGates }: { setGates: (g: Gate[]) => void }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
@@ -121,21 +127,41 @@ const CircuitEditor = () => {
   );
 
   const onNodeDragStop = useCallback(
-    (_event, node) => {
+    (_event: React.MouseEvent, node: Node) => {
       if (node.type === 'qubit') return;
 
       const width = node.width ?? 40;
-      const wireCenterX = snapToWireCenter(node.position.x);
+      const wireX = snapToWireCenter(node.position.x);
 
-      const snappedPos = {
-        x: wireCenterX - width / 2,
+      const snapped = {
+        x: wireX - width / 2,
         y: snapToGrid(node.position.y),
       };
 
-      setNodes((nds) => nds.map((n) => (n.id === node.id ? { ...n, position: snappedPos } : n)));
+      setNodes((nds) => nds.map((n) => (n.id === node.id ? { ...n, position: snapped } : n)));
     },
     [setNodes]
   );
+
+  useEffect(() => {
+    const gates = nodes
+      .filter((n) => n.data?.gateType)
+      .map((gateNode) => {
+        const wireX = snapToWireCenter(gateNode.position.x);
+        const qubit = QUBIT_WIRES.findIndex((w) => w.x === wireX);
+        const time = snapToGrid(gateNode.position.y);
+
+        return {
+          id: gateNode.id,
+          type: gateNode.data.gateType,
+          qubit,
+          time,
+        };
+      })
+      .sort((a, b) => a.time - b.time);
+
+    setGates(gates);
+  }, [nodes, setGates]);
 
   return (
     <div style={{ width: '100%', height: '100%' }}>
@@ -150,7 +176,7 @@ const CircuitEditor = () => {
         snapToGrid
         snapGrid={[GRID_SIZE, GRID_SIZE]}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: 2 }}
       >
         <MiniMap />
         <Controls />

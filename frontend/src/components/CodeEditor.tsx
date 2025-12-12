@@ -1,14 +1,19 @@
 import React, { useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
 
-const CodeEditor: React.FC = () => {
+type Gate = {
+  type: string;
+  qubit: number;
+  time?: number;
+};
+
+const CodeEditor: React.FC<{ gates: Gate[] }> = ({ gates }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
-  const monacoInstanceRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   useEffect(() => {
     if (editorRef.current) {
-      monacoInstanceRef.current = monaco.editor.create(editorRef.current, {
-        value: '# QitBuilder\n# Write your Qiskit circuit code here\n',
+      monacoRef.current = monaco.editor.create(editorRef.current, {
         language: 'python',
         theme: 'vs-dark',
         automaticLayout: true,
@@ -17,10 +22,29 @@ const CodeEditor: React.FC = () => {
       });
     }
 
-    return () => {
-      monacoInstanceRef.current?.dispose();
-    };
+    return () => monacoRef.current?.dispose();
   }, []);
+
+  useEffect(() => {
+    if (!monacoRef.current) return;
+
+    let code = `from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(2)\n`;
+
+    for (const g of gates) {
+      switch (g.type) {
+        case 'x':
+          code += `qc.x(${g.qubit})\n`;
+          break;
+        default:
+          code += `# Unsupported gate type: ${g.type}\n`;
+          break;
+      }
+    }
+
+    code += `\nqc.draw('text')\n`;
+
+    monacoRef.current.setValue(code);
+  }, [gates]);
 
   return (
     <>
@@ -35,10 +59,26 @@ const CodeEditor: React.FC = () => {
         }}
       />
       <div style={{ textAlign: 'center', marginTop: '10px' }}>
-        <button>Clear</button>
+        <button onClick={() => monacoRef.current?.setValue('# Cleared\n')}>Clear</button>
       </div>
     </>
   );
 };
+
+const testMode = false;
+
+if (testMode) {
+  const sample = [{ type: 'x', qubit: 0, time: 25 }];
+
+  let out = 'from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(2)\n';
+  for (const g of sample) out += `qc.x(${g.qubit})\n`;
+  out += "\nqc.draw('text')\n";
+
+  if (
+    out !==
+    "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(2)\nqc.x(0)\n\nqc.draw('text')\n"
+  )
+    throw new Error('Gate-to-code mirroring failed');
+}
 
 export default CodeEditor;
