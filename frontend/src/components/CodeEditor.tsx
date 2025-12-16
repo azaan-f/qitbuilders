@@ -10,19 +10,25 @@ type Gate = {
   params?: GateParams;
 };
 
+type CodeEditorProps = {
+  gates: Gate[];
+  onCodeChange: (code: string) => void;
+};
+
 const getTheta = (g: Gate): string => {
   const theta = g.params?.theta;
   return typeof theta === 'string' ? theta : 'pi/2';
 };
 
-const CodeEditor: React.FC<{ gates: Gate[] }> = ({ gates }) => {
+const CodeEditor: React.FC<CodeEditorProps> = ({ gates, onCodeChange }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const suppressChangeRef = useRef(false);
 
   useEffect(() => {
     if (!editorRef.current) return;
 
-    monacoRef.current = monaco.editor.create(editorRef.current, {
+    const editor = monaco.editor.create(editorRef.current, {
       language: 'python',
       theme: 'vs-dark',
       automaticLayout: true,
@@ -44,10 +50,18 @@ const CodeEditor: React.FC<{ gates: Gate[] }> = ({ gates }) => {
       },
     });
 
+    monacoRef.current = editor;
+    const sub = editor.onDidChangeModelContent(() => {
+      if (suppressChangeRef.current) return;
+      onCodeChange(editor.getValue());
+    });
+
     return () => {
-      monacoRef.current?.dispose();
+      sub.dispose();
+      editor.dispose();
+      monacoRef.current = null;
     };
-  }, []);
+  }, [onCodeChange]);
 
   useEffect(() => {
     if (!monacoRef.current) return;
@@ -89,9 +103,14 @@ const CodeEditor: React.FC<{ gates: Gate[] }> = ({ gates }) => {
     }
 
     code += `\nqc.draw('text')\n`;
+    code += `qc.measure_all()\n`;
 
+    suppressChangeRef.current = true;
     monacoRef.current.setValue(code);
-  }, [gates]);
+    suppressChangeRef.current = false;
+
+    onCodeChange(code);
+  }, [gates, onCodeChange]);
 
   return (
     <div
