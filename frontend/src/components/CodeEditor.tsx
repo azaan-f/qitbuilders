@@ -20,17 +20,34 @@ const CodeEditor: React.FC<{ gates: Gate[] }> = ({ gates }) => {
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   useEffect(() => {
-    if (editorRef.current) {
-      monacoRef.current = monaco.editor.create(editorRef.current, {
-        language: 'python',
-        theme: 'vs-dark',
-        automaticLayout: true,
-        fontSize: 14,
-        minimap: { enabled: false },
-      });
-    }
+    if (!editorRef.current) return;
 
-    return () => monacoRef.current?.dispose();
+    monacoRef.current = monaco.editor.create(editorRef.current, {
+      language: 'python',
+      theme: 'vs-dark',
+      automaticLayout: true,
+      fontSize: 14,
+
+      minimap: { enabled: false },
+      overviewRulerBorder: false,
+      overviewRulerLanes: 0,
+
+      glyphMargin: false,
+      folding: false,
+      lineDecorationsWidth: 0,
+      lineNumbersMinChars: 3,
+
+      renderLineHighlight: 'none',
+      scrollbar: {
+        verticalScrollbarSize: 10,
+        horizontalScrollbarSize: 10,
+        useShadows: false,
+      },
+    });
+
+    return () => {
+      monacoRef.current?.dispose();
+    };
   }, []);
 
   useEffect(() => {
@@ -69,7 +86,6 @@ const CodeEditor: React.FC<{ gates: Gate[] }> = ({ gates }) => {
           break;
         default:
           code += `# Unsupported gate type: ${g.type}\n`;
-          break;
       }
     }
 
@@ -79,39 +95,23 @@ const CodeEditor: React.FC<{ gates: Gate[] }> = ({ gates }) => {
   }, [gates]);
 
   return (
-    <>
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#1e1e1e',
+        overflow: 'hidden',
+      }}
+    >
       <div
         ref={editorRef}
         style={{
           width: '100%',
-          height: '95%',
-          backgroundColor: '#1e1e1e',
-          borderRadius: '24px',
-          overflow: 'hidden',
+          height: '100%',
         }}
       />
-      <div style={{ textAlign: 'center', marginTop: '10px' }}>
-        <button onClick={() => monacoRef.current?.setValue('# Cleared\n')}>Clear</button>
-      </div>
-    </>
+    </div>
   );
 };
-
-const testMode = false;
-
-if (testMode) {
-  const sample: Gate[] = [{ type: 'x', qubit: 0, time: 25 }];
-
-  let out = 'from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(2)\n';
-  for (const g of sample) out += `qc.x(${g.qubit})\n`;
-  out += "\nqc.draw('text')\n";
-
-  if (
-    out !==
-    "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(2)\nqc.x(0)\n\nqc.draw('text')\n"
-  ) {
-    throw new Error('Gate-to-code mirroring failed');
-  }
-}
 
 export default CodeEditor;

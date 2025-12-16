@@ -195,16 +195,6 @@ function CircuitEditorInner({ setGates }: { setGates: (g: Gate[]) => void }) {
     [setNodes, setEdges]
   );
 
-  useEffect(() => {
-    setNodes((nds) =>
-      nds.map((n) => {
-        if (n.type !== 'gate') return n;
-        const d = n.data as GateNodeData;
-        return { ...n, data: { ...d, onDelete: deleteGate } };
-      })
-    );
-  }, [deleteGate, setNodes]);
-
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       if (node.type === 'qubit') return;
@@ -259,12 +249,13 @@ function CircuitEditorInner({ setGates }: { setGates: (g: Gate[]) => void }) {
           label: item.label,
           gateType: item.gateType,
           params: item.params,
+          onDelete: deleteGate,
         },
       };
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [makeId, screenToFlowPosition, setNodes]
+    [makeId, screenToFlowPosition, setNodes, deleteGate]
   );
 
   useEffect(() => {
@@ -307,6 +298,11 @@ function CircuitEditorInner({ setGates }: { setGates: (g: Gate[]) => void }) {
           snapGrid={[GRID_SIZE, GRID_SIZE]}
           fitView
           fitViewOptions={{ padding: 2 }}
+          onInit={(rf) => {
+            rf.fitView({ padding: 2 });
+            const v = rf.getViewport();
+            rf.setViewport({ ...v, y: v.y - 350 }, { duration: 0 });
+          }}
         >
           <MiniMap />
           <Controls />

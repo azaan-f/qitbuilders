@@ -16,25 +16,31 @@ function App() {
   return (
     <div
       style={{
-        display: 'flex',
-        flexDirection: 'column',
         width: '100vw',
         height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
         margin: 0,
-        backgroundColor: '#f3f4f6',
+        padding: 0,
         overflow: 'hidden',
+        backgroundColor: '#f3f4f6',
       }}
     >
       <TopBar />
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          overflow: 'hidden',
+        }}
+      >
         <div
           style={{
             flex: 1,
+            overflow: 'hidden',
             backgroundColor: '#ffffff',
             borderRight: '1px solid #e5e7eb',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
           }}
         >
           <CircuitEditor setGates={setGates} />
@@ -43,10 +49,8 @@ function App() {
         <div
           style={{
             flex: 1,
-            backgroundColor: '#ffffff',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+            overflow: 'hidden',
+            backgroundColor: '#1e1e1e',
           }}
         >
           <CodeEditor gates={gates} />
