@@ -83,6 +83,7 @@ QC_RE = re.compile(r"^\s*qc\s*=\s*QuantumCircuit\(\s*(\d+)\s*\)\s*$")
 
 GATE_1Q_RE = re.compile(r"^\s*qc\.(x|y|z|h|s|t)\(\s*(\d+)\s*\)\s*$")
 GATE_PARAM_RE = re.compile(r"^\s*qc\.(rx|ry|rz)\(\s*([^,]+)\s*,\s*(\d+)\s*\)\s*$")
+GATE_2Q_RE = re.compile(r"^\s*qc\.(cx|cz)\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*$")
 
 MEASURE_ALL_RE = re.compile(r"^\s*qc\.measure_all\(\s*\)\s*$")
 DRAW_RE = re.compile(r"^\s*qc\.draw\(\s*['\"]text['\"]\s*\)\s*$")
@@ -165,6 +166,14 @@ def parse_generated_qiskit(code: str) -> Tuple[int, List[Op], bool]:
             ops.append(Op(gate, [theta, q]))
             continue
 
+        m = GATE_2Q_RE.match(line)
+        if m:
+            gate = m.group(1)
+            c = int(m.group(2))
+            t = int(m.group(3))
+            ops.append(Op(gate, [c, t]))
+            continue
+
         raise ValueError(f"Rejected line: {raw!r}")
 
     if not seen_header:
@@ -189,6 +198,7 @@ def braket_run(payload: BraketRunPayload):
         raise HTTPException(status_code=400, detail=str(e))
 
     qc = QuantumCircuit(n_qubits)
+
     for op in ops:
         if op.name in {"x", "y", "z", "h", "s", "t"}:
             getattr(qc, op.name)(int(op.args[0]))
@@ -196,6 +206,10 @@ def braket_run(payload: BraketRunPayload):
             theta = float(op.args[0])
             q = int(op.args[1])
             getattr(qc, op.name)(theta, q)
+        elif op.name in {"cx", "cz"}:
+            c = int(op.args[0])
+            t = int(op.args[1])
+            getattr(qc, op.name)(c, t)
         else:
             raise HTTPException(status_code=500, detail=f"Unsupported op: {op.name}")
 
@@ -204,13 +218,17 @@ def braket_run(payload: BraketRunPayload):
 
     try:
         boto_sess = boto3.Session(region_name=AWS_REGION)
-        aws_sess = AwsSession(boto_session=boto_sess, default_bucket=BKT_RESULTS_BUCKET)
+        _aws_sess = AwsSession(boto_session=boto_sess, default_bucket=BKT_RESULTS_BUCKET)
 
         provider = BraketProvider()
         backend = provider.get_backend(payload.backend)
 
         try:
-            job = backend.run(qc, shots=payload.shots, s3_folder=(BKT_RESULTS_BUCKET, BKT_RESULTS_PREFIX))
+            job = backend.run(
+                qc,
+                shots=payload.shots,
+                s3_folder=(BKT_RESULTS_BUCKET, BKT_RESULTS_PREFIX),
+            )
         except TypeError:
             job = backend.run(qc, shots=payload.shots)
 
