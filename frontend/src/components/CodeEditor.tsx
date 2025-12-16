@@ -34,7 +34,6 @@ const CodeEditor: React.FC<{ gates: Gate[] }> = ({ gates }) => {
 
       glyphMargin: false,
       folding: false,
-      lineDecorationsWidth: 0,
       lineNumbersMinChars: 3,
 
       renderLineHighlight: 'none',
