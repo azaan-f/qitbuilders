@@ -1,11 +1,21 @@
 import React from 'react';
 
-export type PaletteItem = {
-  kind: 'single';
-  gateType: string;
-  label: string;
-  params?: Record<string, unknown>;
-};
+export type PaletteItem =
+  | {
+      kind: 'single';
+      gateType: string;
+      label: string;
+      params?: Record<string, unknown>;
+    }
+  | {
+      kind: 'pair';
+      label: string;
+      gates: Array<{
+        gateType: string;
+        label: string;
+        params?: Record<string, unknown>;
+      }>;
+    };
 
 const PALETTE: PaletteItem[] = [
   { kind: 'single', gateType: 'x', label: 'X' },
@@ -17,6 +27,22 @@ const PALETTE: PaletteItem[] = [
   { kind: 'single', gateType: 'rx', label: 'Rx', params: { theta: 'pi/2' } },
   { kind: 'single', gateType: 'ry', label: 'Ry', params: { theta: 'pi/2' } },
   { kind: 'single', gateType: 'rz', label: 'Rz', params: { theta: 'pi/2' } },
+  {
+    kind: 'pair',
+    label: 'CX',
+    gates: [
+      { gateType: 'ctrl', label: '●' },
+      { gateType: 'x', label: 'X' },
+    ],
+  },
+  {
+    kind: 'pair',
+    label: 'CZ',
+    gates: [
+      { gateType: 'ctrl', label: '●' },
+      { gateType: 'z', label: 'Z' },
+    ],
+  },
 ];
 
 const gateBoxStyle: React.CSSProperties = {
@@ -54,7 +80,7 @@ const GatePalette: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
         {PALETTE.map((item, idx) => (
           <div
-            key={`${item.kind}-${item.gateType}-${idx}`}
+            key={`${item.kind}-${'gateType' in item ? item.gateType : item.label}-${idx}`}
             style={{ display: 'flex', justifyContent: 'center' }}
           >
             <div
@@ -69,7 +95,7 @@ const GatePalette: React.FC = () => {
                 cursor: 'grab',
               }}
             >
-              {item.label}
+              {item.kind === 'single' ? item.label : item.label}
             </div>
           </div>
         ))}

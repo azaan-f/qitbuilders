@@ -20,6 +20,11 @@ const getTheta = (g: Gate): string => {
   return typeof theta === 'string' ? theta : 'pi/2';
 };
 
+const getTargetQubit = (g: Gate): number | null => {
+  const t = g.params?.target;
+  return typeof t === 'number' && Number.isFinite(t) ? t : null;
+};
+
 const CodeEditor: React.FC<CodeEditorProps> = ({ gates, onCodeChange }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -96,6 +101,26 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ gates, onCodeChange }) => {
           break;
         case 'rz':
           code += `qc.rz(${getTheta(g)}, ${g.qubit})\n`;
+          break;
+        case 'cx': {
+          const target = getTargetQubit(g);
+          if (target === null) {
+            code += `# Missing target for cx on control ${g.qubit}\n`;
+          } else {
+            code += `qc.cx(${g.qubit}, ${target})\n`;
+          }
+          break;
+        }
+        case 'cz': {
+          const target = getTargetQubit(g);
+          if (target === null) {
+            code += `# Missing target for cz on control ${g.qubit}\n`;
+          } else {
+            code += `qc.cz(${g.qubit}, ${target})\n`;
+          }
+          break;
+        }
+        case 'ctrl':
           break;
         default:
           code += `# Unsupported gate type: ${g.type}\n`;

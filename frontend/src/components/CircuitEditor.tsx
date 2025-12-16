@@ -77,10 +77,14 @@ type GateNodeData = {
   label: string;
   gateType: string;
   params?: GateParams;
+  pairId?: string;
+  role?: 'control' | 'target';
   onDelete?: (id: string) => void;
 };
 
 type GateNode = Node<GateNodeData>;
+
+type PairEdgeData = { pairId: string };
 
 function isGateNode(n: Node): n is GateNode {
   return n.type === 'gate' && typeof (n.data as GateNodeData | undefined)?.gateType === 'string';
@@ -88,6 +92,9 @@ function isGateNode(n: Node): n is GateNode {
 
 const GateNodeComponent = memo(({ id, data }: NodeProps<GateNodeData>) => {
   const [hover, setHover] = useState(false);
+
+  const isControl = data?.role === 'control';
+  const isTarget = data?.role === 'target';
 
   return (
     <div
@@ -99,8 +106,9 @@ const GateNodeComponent = memo(({ id, data }: NodeProps<GateNodeData>) => {
         justifyContent: 'center',
         border: '2px solid black',
         borderRadius: 6,
-        background: 'white',
-        fontWeight: 600,
+        background: isControl ? '#111827' : 'white',
+        color: isControl ? 'white' : 'black',
+        fontWeight: 700,
         cursor: 'grab',
         userSelect: 'none',
         boxSizing: 'border-box',
@@ -108,6 +116,11 @@ const GateNodeComponent = memo(({ id, data }: NodeProps<GateNodeData>) => {
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      title={
+        data?.pairId
+          ? `${data?.gateType.toUpperCase()} (${isControl ? 'control' : isTarget ? 'target' : 'gate'})`
+          : data?.gateType.toUpperCase()
+      }
     >
       {data?.label ?? 'G'}
 
@@ -189,10 +202,25 @@ function CircuitEditorInner({ setGates }: { setGates: (g: Gate[]) => void }) {
 
   const deleteGate = useCallback(
     (id: string) => {
-      setNodes((nds) => nds.filter((n) => n.id !== id));
-      setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+      const n = nodes.find((x) => x.id === id);
+      const pairId = (n?.data as GateNodeData | undefined)?.pairId;
+
+      setNodes((nds) => {
+        if (!pairId) return nds.filter((x) => x.id !== id);
+        return nds.filter((x) => (x.data as GateNodeData | undefined)?.pairId !== pairId);
+      });
+
+      setEdges((eds) => {
+        const withoutGateEdges = eds.filter((e) => e.source !== id && e.target !== id);
+        if (!pairId) return withoutGateEdges;
+
+        return withoutGateEdges.filter((e) => {
+          const data = e.data as PairEdgeData | undefined;
+          return data?.pairId !== pairId;
+        });
+      });
     },
-    [setNodes, setEdges]
+    [nodes, setNodes, setEdges]
   );
 
   const onNodeDragStop = useCallback(
@@ -200,14 +228,38 @@ function CircuitEditorInner({ setGates }: { setGates: (g: Gate[]) => void }) {
       if (node.type === 'qubit') return;
 
       const width = node.width ?? 40;
-      const wireX = snapToWireCenter(node.position.x);
+      const snappedWireX = snapToWireCenter(node.position.x);
 
       const snapped = {
-        x: wireX - width / 2,
+        x: snappedWireX - width / 2,
         y: snapToGrid(node.position.y),
       };
 
-      setNodes((nds) => nds.map((n) => (n.id === node.id ? { ...n, position: snapped } : n)));
+      setNodes((nds) => {
+        const thisNode = nds.find((n) => n.id === node.id);
+        const pairId = (thisNode?.data as GateNodeData | undefined)?.pairId;
+        if (!pairId) {
+          return nds.map((n) => (n.id === node.id ? { ...n, position: snapped } : n));
+        }
+        const targetY = snapped.y;
+
+        return nds.map((n) => {
+          const data = n.data as GateNodeData | undefined;
+          if (data?.pairId !== pairId) return n;
+
+          if (data.role === 'control') {
+            const x = QUBIT_WIRES[0].x - width / 2;
+            return { ...n, position: { x, y: targetY } };
+          }
+
+          if (data.role === 'target') {
+            const x = QUBIT_WIRES[1].x - width / 2;
+            return { ...n, position: { x, y: targetY } };
+          }
+
+          return { ...n, position: { x: snapped.x, y: targetY } };
+        });
+      });
     },
     [setNodes]
   );
@@ -232,51 +284,146 @@ function CircuitEditorInner({ setGates }: { setGates: (g: Gate[]) => void }) {
       } catch {
         return;
       }
-      if (!item || item.kind !== 'single') return;
+      if (!item) return;
 
       const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-
       const y = snapToGrid(flowPos.y);
-      const wireCenterX = snapToWireCenter(flowPos.x);
-      const x = wireCenterX - 20;
 
-      const id = makeId();
-      const newNode: GateNode = {
-        id,
-        type: 'gate',
-        position: { x, y },
-        data: {
-          label: item.label,
-          gateType: item.gateType,
-          params: item.params,
-          onDelete: deleteGate,
-        },
-      };
+      if (item.kind === 'single') {
+        const wireCenterX = snapToWireCenter(flowPos.x);
+        const x = wireCenterX - 20;
 
-      setNodes((nds) => nds.concat(newNode));
+        const id = makeId();
+        const newNode: GateNode = {
+          id,
+          type: 'gate',
+          position: { x, y },
+          data: {
+            label: item.label,
+            gateType: item.gateType,
+            params: item.params,
+            onDelete: deleteGate,
+          },
+        };
+
+        setNodes((nds) => nds.concat(newNode));
+        return;
+      }
+
+      if (item.kind === 'pair') {
+        const pairId = `pair-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+        const width = 40;
+        const controlX = QUBIT_WIRES[0].x - width / 2;
+        const targetX = QUBIT_WIRES[1].x - width / 2;
+
+        const controlId = makeId();
+        const targetId = makeId();
+
+        const [g0, g1] = item.gates;
+
+        const controlNode: GateNode = {
+          id: controlId,
+          type: 'gate',
+          position: { x: controlX, y },
+          data: {
+            label: g0.label,
+            gateType: g0.gateType,
+            params: g0.params,
+            pairId,
+            role: 'control',
+            onDelete: deleteGate,
+          },
+        };
+
+        const targetNode: GateNode = {
+          id: targetId,
+          type: 'gate',
+          position: { x: targetX, y },
+          data: {
+            label: g1.label,
+            gateType: g1.gateType,
+            params: g1.params,
+            pairId,
+            role: 'target',
+            onDelete: deleteGate,
+          },
+        };
+
+        const connector: Edge<PairEdgeData> = {
+          id: `e-${pairId}`,
+          source: controlId,
+          target: targetId,
+          animated: false,
+          deletable: false,
+          focusable: false,
+          updatable: false,
+          style: { strokeWidth: 2, stroke: '#111827', pointerEvents: 'none' },
+          data: { pairId },
+        };
+
+        setNodes((nds) => nds.concat(controlNode, targetNode));
+        setEdges((eds) => eds.concat(connector));
+        return;
+      }
     },
-    [makeId, screenToFlowPosition, setNodes, deleteGate]
+    [makeId, screenToFlowPosition, setNodes, setEdges, deleteGate]
   );
 
   useEffect(() => {
-    const gates: Gate[] = nodes
-      .filter(isGateNode)
-      .map((gateNode) => {
-        const wireX = snapToWireCenter(gateNode.position.x);
+    const gateNodes = nodes.filter(isGateNode);
+
+    const pairMap = new Map<string, GateNode[]>();
+    for (const n of gateNodes) {
+      const pid = n.data.pairId;
+      if (!pid) continue;
+      const arr = pairMap.get(pid) ?? [];
+      arr.push(n);
+      pairMap.set(pid, arr);
+    }
+
+    const paired: Gate[] = [];
+    for (const [, pairNodes] of pairMap) {
+      const control = pairNodes.find((n) => n.data.role === 'control');
+      const target = pairNodes.find((n) => n.data.role === 'target');
+      if (!control || !target) continue;
+
+      const controlWireX = snapToWireCenter(control.position.x);
+      const targetWireX = snapToWireCenter(target.position.x);
+
+      const controlQubit = QUBIT_WIRES.findIndex((w) => w.x === controlWireX);
+      const targetQubit = QUBIT_WIRES.findIndex((w) => w.x === targetWireX);
+
+      const time = snapToGrid(control.position.y);
+      const twoQubitType = target.data.label === 'Z' ? 'cz' : 'cx';
+
+      paired.push({
+        id: `pair-${control.id}`,
+        type: twoQubitType,
+        qubit: controlQubit,
+        time,
+        params: { target: targetQubit },
+      });
+    }
+
+    const singles: Gate[] = gateNodes
+      .filter((n) => !n.data.pairId)
+      .map((n) => {
+        const wireX = snapToWireCenter(n.position.x);
         const qubit = QUBIT_WIRES.findIndex((w) => w.x === wireX);
-        const time = snapToGrid(gateNode.position.y);
+        const time = snapToGrid(n.position.y);
 
         return {
-          id: gateNode.id,
-          type: gateNode.data.gateType,
+          id: n.id,
+          type: n.data.gateType,
           qubit,
           time,
-          params: gateNode.data.params,
+          params: n.data.params,
         };
-      })
-      .sort((a, b) => a.time - b.time);
+      });
 
-    setGates(gates);
+    const all = [...singles, ...paired].sort((a, b) => a.time - b.time || a.qubit - b.qubit);
+    setGates(all);
   }, [nodes, setGates]);
 
   return (
